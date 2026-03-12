@@ -439,6 +439,7 @@ impl Output {
     /// Render the current state of everything to the console screen
     pub fn render(&mut self, runner: &AppServer, server: &WebServer) {
         if !self.interactive {
+            self.drain();
             return;
         }
 
@@ -886,6 +887,29 @@ impl Output {
         );
     }
 
+    /// Drain pending logs to stderr for non-interactive mode.
+    fn drain(&mut self) {
+        use std::io::IsTerminal;
+        let is_tty = std::io::stderr().is_terminal();
+
+        while let Some(log) = self.pending_logs.pop_back() {
+            if log.level == Level::DEBUG && !self.verbose {
+                continue;
+            }
+            if log.level == Level::TRACE && !self.trace {
+                continue;
+            }
+            let lines = Self::tracemsg_to_ansi_string(log);
+            for line in lines {
+                if is_tty {
+                    eprintln!("{line}");
+                } else {
+                    eprintln!("{}", console::strip_ansi_codes(&line));
+                }
+            }
+        }
+    }
+
     /// Print logs to the terminal as close to a regular "println!()" as possible.
     ///
     /// We don't want alternate screens or other terminal tricks because we want these logs to be as
@@ -1090,6 +1114,7 @@ impl Output {
 impl std::ops::Drop for Output {
     fn drop(&mut self) {
         if !self.interactive {
+            self.drain();
             return;
         }
 
