@@ -1158,7 +1158,6 @@ impl BuildRequest {
         let mut stdout = stdout.lines();
         let mut stderr = stderr.lines();
         let mut units_compiled = 0;
-        let mut emitting_error = false;
 
         loop {
             use cargo_metadata::Message;
@@ -1207,23 +1206,14 @@ impl BuildRequest {
                         ctx.status_build_diagnostic(diag);
                     }
 
-                    // For whatever reason, if there's an error while building, we still receive the TextLine
-                    // instead of an "error" message. However, the following messages *also* tend to
-                    // be the error message, and don't start with "error:". So we'll check if we've already
-                    // emitted an error message and if so, we'll emit all following messages as errors too.
-                    //
-                    // todo: This can lead to some really ugly output though, so we might want to look
-                    // into a more reliable way to detect errors propagating out of the compiler. If
-                    // we always wrapped rustc, then we could store this data somewhere in a much more
-                    // reliable format.
-                    if line.trim_start().starts_with("error:") {
-                        emitting_error = true;
-                    }
-
-                    // Note that previous text lines might have set emitting_error to true
-                    match emitting_error {
-                        true => ctx.status_build_error(line),
-                        false => ctx.status_build_message(line),
+                    // Classify each TextLine independently. Lines starting with "error"
+                    // are genuine errors; everything else (including linker invocations
+                    // from `= note:` blocks) goes to trace. Structured CompilerMessage
+                    // diagnostics are already handled above via status_build_diagnostic.
+                    if line.trim_start().starts_with("error") {
+                        ctx.status_build_error(line);
+                    } else {
+                        ctx.status_build_message(line);
                     }
                 }
                 Message::CompilerArtifact(artifact) => {
