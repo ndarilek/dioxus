@@ -48,23 +48,28 @@ pub(crate) async fn serve_all(args: ServeArgs, tracer: &TraceController) -> Resu
 
     // This is our default splash screen. We might want to make this a fancier splash screen in the future
     // Also, these commands might not be the most important, but it's all we've got enabled right now
-    tracing::info!(
-        r#"-----------------------------------------------------------------
-                Serving your app: {binname}! 🚀
+    let keyboard_hints = if builder.interactive {
+        format!(
+            r#"
                 • Press {GLOW_STYLE}`ctrl+c`{GLOW_STYLE:#} to exit the server
                 • Press {GLOW_STYLE}`r`{GLOW_STYLE:#} to rebuild the app
                 • Press {GLOW_STYLE}`p`{GLOW_STYLE:#} to toggle automatic rebuilds
                 • Press {GLOW_STYLE}`v`{GLOW_STYLE:#} to toggle verbose logging
-                • Press {GLOW_STYLE}`/`{GLOW_STYLE:#} for more commands and shortcuts{extra}
-               ----------------------------------------------------------------"#,
+                • Press {GLOW_STYLE}`/`{GLOW_STYLE:#} for more commands and shortcuts"#
+        )
+    } else {
+        format!("\n                • Press {GLOW_STYLE}`ctrl+c`{GLOW_STYLE:#} to exit the server")
+    };
+    let learn_more = if builder.client.build.using_dioxus_explicitly {
+        format!(
+            "\n                Learn more at {LINK_STYLE}https://dioxuslabs.com/learn/0.7/getting_started{LINK_STYLE:#}"
+        )
+    } else {
+        String::new()
+    };
+    tracing::info!(
+        "-----------------------------------------------------------------\n                Serving your app: {binname}! \u{1f680}{keyboard_hints}{learn_more}\n               ----------------------------------------------------------------",
         binname = builder.client.build.executable_name(),
-        extra = if builder.client.build.using_dioxus_explicitly {
-            format!(
-                "\n                Learn more at {LINK_STYLE}https://dioxuslabs.com/learn/0.7/getting_started{LINK_STYLE:#}"
-            )
-        } else {
-            String::new()
-        }
     );
 
     builder.initialize();
